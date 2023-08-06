@@ -1,0 +1,545 @@
+{% extends '__base_local__.html' %}
+
+{% block title %}v2ray{% endblock %}
+{% block beforehead %}
+<style>
+    html,
+    body {
+        scroll-behavior: smooth;
+    }
+
+    .v-enter-active,
+    .v-leave-active {
+        transition: opacity 1.5s ease;
+        transition: translate 1.5s ease;
+    }
+
+    .fade-enter-from,
+    .fade-leave-to {
+        transition: translateY(0)
+    }
+
+    .slide-fade-enter-active {
+        transition: all .3s ease-out;
+    }
+
+    .slide-fade-leave-active {
+        transition: all .8s cubic-bezier(1.0, 0.5, 0.8, 1.0);
+    }
+
+    .slide-fade-enter-from,
+    .slide-fade-leave-to {
+        transform: translateY(0px);
+        opacity: 0;
+    }
+
+    .tools-main {
+        background-color: #c1f0c1aa;
+        bottom: 50px;
+        right: 2vw;
+        cursor: pointer;
+        position: fixed;
+        text-align: center;
+        z-index: 101;
+    }
+
+    .toast-main {
+        position: fixed;
+        right: 5vw;
+        bottom: 15vh;
+        font-size: 1em;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- Content Header (Page header) -->
+
+<section class="content-header">
+    <h1>
+        V2Ray
+        <small>V2Ray panel</small>
+    </h1>
+    <ol class="breadcrumb">
+        <li><a href="/"><i class="fa fa-dashboard"></i> Home</a></li>
+        <li class="active">V2Ray</li>
+    </ol>
+</section>
+
+<div class="container" id="main">
+    <router-view></router-view>
+</div>
+
+{% endblock %}
+
+{% block beforebody %}
+<script src="static/vue/vue.global-3.2.31.js"></script>
+<script src="static/vue/vuex.global-4.0.2.js"></script>
+<script src="static/vue/vue-router.global-4.0.14.js"></script>
+<script src="static/vue/vue3-sfc-loader-5.3.5.js"></script>
+<script src="static/main.js"></script>
+<script src="static/qrcode.js"></script>
+<script>
+
+    const store = Vuex.createStore({
+        state() {
+            return {
+                LOADING: false
+            }
+        },
+        mutations: {
+            show(state) {
+                console.log(state.LOADING)
+                state.LOADING = true
+            },
+            hide(state) {
+                console.log(state.LOADING)
+                state.LOADING = false
+            },
+        }
+    })
+
+    const index = {
+        components: {
+            'subscribe': component('static/v2ray/subscribe.vue'),
+            'loading': component('static/vue/loading.vue'),
+            'list_item': component('static/vue/list_item.vue'),
+            'export': component('static/vue/export.vue'),
+            'shareQR': component('static/vue/shareQR.vue'),
+            'navtb': component('static/vue/navtb.vue'),
+        },
+        delimiters: ['+{', '}'],
+        template: `
+            <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+                <div class="btn-group mr-2" role="group" aria-label="First group">
+                    <subscribe type="button" :subs="items" @save="save" @refresh="load" @update="update" @import-clip="importClip"></subscribe>
+                </div>
+            </div>
+            <list_item :fields="fields" :items="v2rays" @select='select' @sort="sort"></list_item>
+             <div id="liveToast" class="toast hide toast-main" role="alert" aria-live="assertive" aria-atomic="true" data-delay="2000" data-animation="true">
+                <div class="toast-header">
+                    <strong class="mr-auto">已复制</strong>
+                    <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            </div>
+            <transition>
+                <loading v-if="loading"></loading>
+            </transition>
+            <export :show='show.export' :content='content' @hide="show.export=false"></export>
+            <shareQR :show="show.share" @hide="show.share=false">
+                <div class="qrcode" style="margin: 0 auto 0 auto;"></div>
+            </shareQR>
+            <transition name="slide-fade">
+            <div class="tools-main">
+                <button class="btn btn-sm d-block tools" v-if="selectItems.length >= 1" @click="deleteV2ray" data-toggle="tooltip" data-placement="top" title="删除">删除</button>
+                <button class="btn btn-sm d-block tools" v-if="selectItems.length >= 1" @click="test" data-toggle="tooltip" data-placement="top" title="测试网速">测试</button>
+                <button class="btn btn-sm d-block tools" v-if="selectItems.length === 1" @click="export2" data-toggle="tooltip" data-placement="top" title="导出配置文件">导出</button>
+                <button class="btn btn-sm d-block tools" v-if="selectItems.length === 1" @click="enableV2ray" data-toggle="tooltip" data-placement="top" title="启动|关闭">+{ selectItems[0].enabled ? '关闭' : '启动' }</button>
+                <button class="btn btn-sm d-block tools" v-if="selectItems.length >= 1" @click="copy($event)" data-toggle="tooltip" data-placement="top" title="复制">复制</button>
+                <button class="btn btn-sm d-block tools" v-if="selectItems.length === 1" @click="share" data-toggle="tooltip" data-placement="top" title="分享二维码">分享</button>
+                <navtb></navtb>
+            </div>
+            </transition>
+        `,
+        data() {
+            return {
+                page: { 'total': 36, 'pages': 3, 'index': 1, 'size': 12 },
+                items: [
+                    {
+                        name: 'jiang',
+                        url: 'https://jiang.netlify.app/',
+                        enable: true,
+                    }
+                ],
+                v2rays: [
+                    {
+                        protocol: '协议',
+                        subscribe: '订阅',
+                        address: '地址',
+                        port: '端口',
+                        security: '加密方式',
+                    }
+                ],
+                loading: false,
+                fields: [
+                    {
+                        name: 'protocol',
+                        text: '协议',
+                        order: 0,
+                    },
+                    {
+                        name: 'subscribe',
+                        text: '订阅',
+                        order: 0,
+                    },
+                    {
+                        name: 'remarks',
+                        text: '名称',
+                        order: 0,
+                    },
+                    {
+                        name: 'address',
+                        text: '地址',
+                        order: 0,
+                    },
+                    {
+                        name: 'port',
+                        text: '端口',
+                        order: 0,
+                    },
+                    {
+                        name: 'security',
+                        text: '加密方式',
+                        order: 0,
+                    },
+                    {
+                        name: 'result',
+                        text: '校验结果',
+                        order: 0,
+                    },
+                    {
+                        name: 'enabled',
+                        text: '启动服务'
+                    },
+                    /*
+                    */
+                ],
+                selectItems: [],
+                content: '',
+                v2ray: {},
+                show: {
+                    export: false,
+                    share: false,
+                },
+            }
+        },
+        mounted() {
+            this.load()
+            this.loadV2ray()
+            Vuex.mapState({
+                LOADING: state => state.LOADING
+            })
+
+        },
+        computed: {
+        },
+        watch: {
+            items: {
+                handler(newVal, oldVal) {
+                    // log(newVal)
+                    log(this.selectItems[0])
+                },
+                deep: true,
+            },
+            v2rays: {
+                handler(newVal, oldVal) {
+                    // log(newVal)
+                    for (let v2ray of newVal) {
+                        for (let item of this.selectItems) {
+                            if (item.id === v2ray.id) {
+                                for (let key of Object.keys(item)) {
+                                    item[key] = v2ray[key]
+                                }
+                            }
+                        }
+                    }
+                },
+                deep: true,
+            }
+        },
+        methods: {
+            bload() {
+                if (!this.loading) {
+                    this.loading = true
+                }
+            },
+            load() {
+                this.loading = true
+                get('v2ray/subs', {}, {
+                    _success: (data) => { this.items = data['msg']['items']; },
+                    _final: () => { this.loading = false },
+                    _before: () => { this.bload() }
+                }
+                )
+            },
+            save(items, remove) {
+                this.loading = true
+                post('v2ray/subs/save', {
+                    items: items
+                }, {
+                    _success: () => { this.items = items; },
+                    _final: () => { this.loading = false },
+                    _before: () => { this.bload() },
+                })
+                if (remove instanceof Array && remove.length > 0) {
+                    this.loading = true
+                    post('v2ray/subs/delete', {
+                        ids: remove
+                    }, {
+                        _final: () => { this.loading = false },
+                        _before: () => { this.bload() }
+                    })
+                }
+            },
+            update() {
+                post('v2ray/subs/update', {
+                    items: this.items
+                }, {
+                    _success: (data) => { this.v2rays = data['msg']['items']; },
+                    _final: () => { this.loading = false },
+                    _before: () => { this.bload() },
+                })
+            },
+            importClip(text) {
+                post('v2ray/import', {
+                    text: text
+                }, {
+                    _success: (data) => { this.v2rays = data['msg']['items']; },
+                    _final: () => { this.loading = false },
+                    _before: () => { this.bload() },
+                })
+            },
+            loadV2ray() {
+                this.loading = true
+                get('v2ray/items', {}, {
+                    _success: (data) => { this.v2rays = data['msg']['items']; },
+                    _final: () => { this.loading = false },
+                    _before: () => { this.bload() }
+                })
+            },
+            select(items) {
+                this.selectItems = []
+                for (let id of items) {
+                    for (let item of this.v2rays) {
+                        if (item.id === id) {
+                            this.selectItems.push(item)
+                            break
+                        }
+                    }
+                }
+                if (this.selectItems.length === 1) {
+                    this.enable = this.selectItems[0].enabled
+                }
+            },
+            export2() {
+                log(this.selectItems)
+                if (this.selectItems.length !== 1) return
+                get('v2ray/export/' + this.selectItems[0].id, {}, {
+                    _success: (data) => { this.content = data['msg']['content']; this.show.export = true },
+                    _final: () => { this.loading = false },
+                    _before: () => { this.bload() }
+                })
+            },
+            deleteV2ray() {
+                log(this.selectItems)
+                if (this.selectItems.length <= 0) return
+                let ids = []
+                this.selectItems.forEach(el => {
+                    ids.push(el.id)
+                })
+                log(ids, 'deleteV2ray')
+                let info = this.selectItems[0].remarks
+                if (this.selectItems.length >= 2) {
+                    info += ", " + this.selectItems[1].remarks
+                }
+                if (confirm('删除' + info + "..等" + this.selectItems.length + '项')) {
+                    this.loading = true
+                    post('v2ray/delete', {
+                        ids: ids
+                    }, {
+                        _success: (data) => { this.v2rays = data['msg']['items']; this.selectItems = [] },
+                        _final: () => { this.loading = false },
+                        _before: () => { this.bload() }
+                    })
+                }
+            },
+            test() {
+                if (this.selectItems.length <= 0) return
+                let items = this.selectItems
+                let url = 'ws://' + location.host + "/v2ray/v2ray_test"
+                let ws = new WebSocket(url);
+                let index = 0
+                let ids = []
+                items.forEach(item => {
+                    ids.push(item.id)
+                })
+                cmd = 'v2ray_test ' + JSON.stringify(ids)
+                ws.onopen = (event) => {
+                    this.bload()
+                    console.log(url + " Connection open ...");
+                    ws._send(cmd)
+                }
+                ws._send = function (cmd) {
+                    console.log("send " + cmd);
+                    ws.send(cmd);
+                }
+                ws.onmessage = (event) => {
+                    // console.log(event.data)
+                    let data = JSON.parse(event.data)
+                    for (let v2ray of this.v2rays) {
+                        if (v2ray['id'] === data['id']) {
+                            v2ray['result'] = data['result']
+                            v2ray['enabled'] = data['enabled']
+                            break
+                        }
+                    }
+                };
+                ws.onclose = (event) => {
+                    this.loading = false
+                    console.log("Connection closed.");
+                };
+                return ws;
+            },
+            test_() {
+                if (this.selectItems.length <= 0) return
+                let ids = []
+                for (let item of this.selectItems) {
+                    ids.push(item.id)
+                }
+                post('v2ray/test', {
+                    ids: ids
+                }, {
+                    _success: (data) => { this.v2rays = data['msg']['items']; },
+                    _final: () => { this.loading = false },
+                    _before: () => { this.bload() },
+                }
+                )
+            },
+            enableV2ray() {
+                log(this.selectItems.length)
+                if (this.selectItems.length !== 1) return
+                let ids = [this.selectItems[0].id]
+                let enable = 1
+                if (this.selectItems[0].enabled) {
+                    enable = 0
+                }
+                post('v2ray/enable', {
+                    ids: ids,
+                    enable: enable
+                }, {
+                    _success: (data) => { this.v2rays = data['msg']['items']; },
+                    _final: () => { this.loading = false },
+                    _before: () => { this.bload() },
+                })
+            },
+            share() {
+                if (this.qrcode === undefined) {
+                    this.qrcode = new QRCode(document.querySelector('.qrcode'), {
+                        colorDark: "#111111",
+                        colorLight: "#ffeeff",
+                        correctLevel: QRCode.CorrectLevel.L,
+                    })
+                }
+                this.qrcode.clear()
+                this.qrcode.makeCode(this.selectItems[0].url)
+                this.show.share = true
+            },
+            copy(event) {
+                if (this.selectItems.length <= 0) return
+                let text = ""
+                this.selectItems.forEach(item => {
+                    text += item.url + "\n"
+                })
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(text).then(function () {
+                        /* clipboard successfully set */
+                        console.log('复制: \n' + text)
+                        alert_('已复制')
+                    }, function () {
+                        /* clipboard write failed */
+                        console.log('复制失败')
+                        alert_('复制失败')
+                    })
+                } else {
+                    console.log('粘贴板已禁用')
+                    let el = event.target
+                    let coptel = el.querySelector('textarea')
+                    if (!coptel) {
+                        coptel = document.createElement('textarea')
+                        coptel.style = "opacity: 0;position: absolute; padding: 0px; border: 0px none;"
+                        el.appendChild(coptel)
+                    }
+                    coptel.value = text
+                    coptel.focus();
+                    if (coptel.setSelectionRange) coptel.setSelectionRange(0, coptel.value.length);
+                    else coptel.select();
+                    document.execCommand('Copy')
+                    console.log('复制: \n' + coptel.value)
+                    alert_('已复制')
+                }
+            },
+            sort(field) {
+                if (field['order'] === 1) {
+                    field['order'] = -1
+                } else if (field['order'] === -1) {
+                    field['order'] = 1
+                } else {
+                    field['order'] = 1
+                }
+                for (let field_ of this.fields) {
+                    if (field_['name'] === field['name']) {
+                        field_['order'] = field['order']
+                    } else {
+                        field_['order'] = 0
+                    }
+                }
+                this.v2rays.sort((a, b) => {
+                    let name = field['name']
+                    if (!a[name] || !b[name]) {
+                        if (field['order'] >= 0) {
+                            if (!a[name] && b[name]) return -1
+                            if (a[name] && !b[name]) return 1
+                        } else {
+                            if (!a[name] && b[name]) return 1
+                            if (a[name] && !b[name]) return -1
+                        }
+                        if (!a[name] && !b[name]) return 0
+                    }
+                    if (typeof (a[name]) === 'number') {
+                        if (field['order'] >= 0) {
+                            return a[name] - b[name]
+                        } else {
+                            return b[name] - a[name]
+                        }
+                    }
+                    else {
+                        if (field['order'] >= 0) {
+                            return a[name].localeCompare(b[name])
+                        } else {
+                            return b[name].localeCompare(a[name])
+                        }
+                    }
+                })
+            }
+        }
+    }
+
+
+    const routes = [
+        {
+            path: '/',
+            name: 'index',
+            component: index,
+        },
+    ]
+
+    const router = VueRouter.createRouter({
+        // 4. 内部提供了 history 模式的实现。为了简单起见，我们在这里使用 hash 模式。
+        history: VueRouter.createWebHashHistory(),
+        routes, // `routes: routes` 的缩写
+    })
+
+
+    const app = Vue.createApp({})
+    // const app = Vue.createApp(index);
+    //整个应用支持路由。
+    app.use(router)
+    app.use(store)
+    // mount方法返回根组件实例
+    app.mount('#main');
+
+</script>
+{% endblock %}

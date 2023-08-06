@@ -1,0 +1,16 @@
+version: "3"
+services:
+  porn91_vue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: porn91_vue:v1.0
+    container_name: porn91_vue_v1
+    restart: always
+    ports:
+      - 6080:80
+    volumes:
+      - ./nginx.conf:/usr/local/nginx/nginx.conf
+      - ./mime.types:/usr/local/nginx/mime.types
+      - ./dist:/data
+      - ./porn91/config/web.yaml:/porn91/config/web.yaml

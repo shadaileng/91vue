@@ -1,0 +1,8 @@
+sqlite:
+  db_file: "/data/data.db"
+  echo: False
+log:
+  path: /data/logs/admin/
+base_dir: /data
+host: 0.0.0.0
+port: 8084

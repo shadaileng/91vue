@@ -1,0 +1,1461 @@
+{% extends '__base__.html' %}
+
+{% block title %}首页{% endblock %}
+
+{% block beforehead %}
+{% if mode == 'm3u8' %}
+<link href="/static/videojs/video-js.min.css" rel="stylesheet" />
+<!-- City -->
+<link href="/static/videojs/city/index.css" rel="stylesheet" />
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="container">
+    {% if mode=='list' or mode=='grid' %}
+    <div class="row">
+        <div class="btn-toolbar col-md-12" role="toolbar" aria-label="Toolbar with button groups">
+            <div class="btn-group mr-2" style="margin-bottom: 1rem;" role="group" aria-label="First group">
+                <button type="button" class="btn btn-primary config" data-toggle="modal">配置</button>
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#new">新建</button>
+                <button type="button" class="btn btn-primary export" data-path="/{{ path | join('/') }}">导出</button>
+                <button type="button" class="btn btn-primary stop">停止</button>
+                <button type="button" class="btn btn-primary proxytest">代理配置</button>
+                <button type="button" class="btn btn-primary log">日志</button>
+            </div>
+            <div id="loadrflist" class="input-group mr-2" style="margin-bottom: 1rem;">
+                <div class="input-group-prepend">
+                    <button type="button" class="btn btn-primary">热门视频</button>
+                </div>
+                <input type="text" name="range" class="form-control" style="width:50px" placeholder="1:2" aria-label="1:2" aria-describedby="loadrflist">
+            </div>
+            <div id="loadaccuntlist" class="input-group mr-2" style="margin-bottom: 1rem;">
+                <div class="input-group-prepend">
+                    <button type="button" class="btn btn-primary">用户视频</button>
+                </div>
+                <input type="text" name="range" class="form-control" style="width:100px" placeholder="uid/1:2" aria-label="1:2" aria-describedby="loadaccuntlist">
+            </div>
+        </div>
+
+        <div class="btn-toolbar col-md-12" role="toolbar" aria-label="Toolbar with button groups">
+            <div class="btn-group mr-2 multi" style="margin-bottom: 1rem; display: none;" role="group" aria-label="Second group">
+                <button type="button" class="btn btn-primary delete">删除</button>
+                <button type="button" class="btn btn-primary loadvideopage">获取视频信息</button>
+                <button type="button" class="btn btn-primary downloadsrc">下载视频</button>
+                <button type="button" class="btn btn-primary update_poster" data-path="/{{ path | join('/') }}">更新封面</button>
+                <button type="button" class="btn btn-primary thumbnails" data-path="/{{ path | join('/') }}">更新视频预览</button>
+            </div>
+            <div class="btn-group mr-2 single" style="margin-bottom: 1rem; display: none;" role="group" aria-label="Second group">
+                <button type="button" class="btn btn-primary update" data-path="/{{ path | join('/') }}">修改</button>
+                <button type="button" class="btn btn-primary status" data-path="/{{ path | join('/') }}">状态</button>
+            </div>
+        </div>
+    </div>
+    <div id="config" class="modal fade bd-example-modal-lg" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content container">
+                <div class="row">
+                    <div class="col" style="background-color: rgba(251, 241, 227, 0.95);">
+                        <span class="add btn"><i class="fa fa-plus-square-o"></i></span>
+                        <span class="submit btn" data-path="/{{ path | join('/') }}"><i class="fa fa-check-square-o"></i></span>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th scope="col" width="90">Key</th>
+                                    <th scope="col">Value</th>
+                                    <th scope="col" width="45">En</th>
+                                    <!-- <th scope="col" width="90">Descript</th> -->
+                                    <th scope="col" width="50">del</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Mark</td>
+                                    <td>Otto</td>
+                                    <td>False</td>
+                                    <td>@mdo</td>
+                                    <td><i class="fa fa-trash-o"></i></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- <button class="btn btn-success text-center" data-path="/{{ path | join('/') }}">确定</button> -->
+            </div>
+        </div>
+    </div>
+    <div id="new" class="modal fade bd-example-modal-lg" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content container">
+                <div class="row">
+                    <span id="additem" class="btn" data-path="/{{ path | join('/') }}"><i class="fa fa-plus-square-o"></i></span>
+                    <span id="import" class="btn" data-path="/{{ path | join('/') }}"><i class="fa fa-check-square-o"></i></span>
+                </div>
+                <div class="row">
+                    <div id="edit" class="col-md-6" style="background-color: rgba(251, 241, 227, 0.95);border-top: 1px solid black;border-right: 1px solid black;">
+                        <div class="form-group">
+                            <div class="form-group">
+                                <label for="edit-key">Key</label>
+                                <input type="text" class="form-control" id="edit-key" name="key" placeholder="输入Key">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-name">名称</label>
+                                <input type="text" class="form-control" id="edit-name" name="name" placeholder="输入名称">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-src">下载地址</label>
+                                <input type="text" class="form-control" id="edit-src" name="src" placeholder="输入关联网页">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-poster">封面地址</label>
+                                <input type="text" class="form-control" id="edit-poster" name="poster" placeholder="输入封面地址">
+                            </div>
+                            <!-- <button class="btn btn-success text-center" data-path="/{{ path | join('/') }}">添加</button> -->
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <textarea id="view" style="background-color: rgba(251, 241, 227, 0.95);resize: none;width: 100%; height: 100%;"></textarea>
+                    </div>
+                </div>
+                <!-- <button id="import" class="btn btn-success text-center" data-path="/{{ path | join('/') }}">确定</button> -->
+            </div>
+        </div>
+    </div>
+    <div id="export" class="modal fade bd-example-modal-xl" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <textarea style="height: 50vh;resize: none" readonly></textarea>
+            </div>
+        </div>
+    </div>
+    <div id="update" class="modal fade bd-example-modal-lg" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+            <div class="modal-content container">
+                <div class="row">
+                    <span id="update_to" class="btn" data-path="/{{ path | join('/') }}"><i class="fa fa-check-square-o"></i></span>
+                </div>
+                <div class="row">
+                    <input type="text" class="form-control" name="path" readonly>
+                    <input type="text" class="form-control" name="key" readonly>
+                    <select class="custom-select" name="status">
+                        <!-- <option selected>状态</option> -->
+                        <option value="-2">异常</option>
+                        <option value="-1">暂停</option>
+                        <option value="0">下载中</option>
+                        <option value="1">下载完成</option>
+                    </select>
+                    <input type="text" class="form-control" name="src" placeholder="输入下载地址">
+                    <input type="text" class="form-control" name="src_local" placeholder="输入播放地址">
+                    <input type="text" class="form-control" name="poster" placeholder="输入封面下载地址">
+                    <input type="text" class="form-control" name="poster_local" placeholder="输入封面本地地址">
+                </div>
+                <!-- <button class="btn btn-success text-center" data-path="/{{ path | join('/') }}">确定</button> -->
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <div class="row">
+        <nav class="col-md-8" aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                {% with %}
+                {% for item in path %}
+                {% if loop.last and mode == 'video' %}
+                <li class="breadcrumb-item active" aria-current="page">{{ item }}</li>
+                {% else %}
+                <li class="breadcrumb-item">
+                    <a href="{{ prefix }}/?path=/{{ path | range_slice(0, loop.index) | join('/')}}{% if mode=='list' or mode=='grid' %}&mode={{ mode }}&index=1{% endif %}">
+                        {{ item }}
+                    </a>
+                </li>
+                {% endif %}
+                {% endfor %}
+                {% endwith %}
+                {% if mode == 'list' or mode == 'grid' %}
+                <li v-else class="breadcrumb-item" aria-current="page">
+                    <div class="dropdown">
+                        {% with status_map = {'': '全部', '-2': '异常', '-1': '暂停', '0': '下载中', '1': '完成'} %}
+                        <span class="dropdown-toggle" id="all_status" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ status_map[status if status else ''] }}</span>
+                        <div class="dropdown-menu" aria-labelledby="all_status">
+                            {% for key, value in status_map.items() %}
+                            <a class="dropdown-item" href="{{ prefix }}/?path=/{{ path | join('/')}}{% if mode=='list' or mode=='grid' %}&mode={{ mode }}&index=1&status={{key}}{% endif %}">{{ status_map[key] }}</a>
+                            {% endfor %}
+                        </div>
+                        {% endwith %}
+                    </div>
+                </li>
+
+                <!-- 
+                <a class="position-absolute mr-4 d-block d-sm-none" style="right: 0px;" data-toggle="collapse" data-target="#toolsbar" aria-controls="toolsbar" aria-expanded="false" aria-label="Toggle navigation" href="javascript:void()">
+                    <span class="navbar-toggler-icon"><i class="fa fa-list" aria-hidden="true"></i></span>
+                </a>
+                -->
+
+                <!-- d-none d-sm-block  -->
+
+                <div id="toolsbar" class="position-absolute mr-3" style="right: 0px;">
+                    <div class="d-inline">
+                        <input type="text" style="height: 20px;width: 70px;" {% if name %}value="{{name}}" {% endif %}>
+                        <span id="search_clear" onclick="document.querySelector('#search').parentNode.querySelector('input').value = '';del_cookie('name')" aria-hidden="true" style="position: absolute;left: 55px;cursor: pointer;">&times;</span>
+                        <a id="search" class="ml-1" style="cursor: pointer;font-size: 1em;" href="#search"><i class="fa fa-search" aria-hidden="true"></i></a>
+                    </div>
+                    <div class="custom-control custom-switch d-inline ml-5">
+                        <label style="position: absolute;left: -30px;">list</label>
+                        <input type="checkbox" class="custom-control-input" id="mode" {% if mode=='grid' %}checked{% endif %}>
+                        <label class="custom-control-label" for="mode">grid</label>
+                    </div>
+                </div>
+                {% endif %}
+            </ol>
+        </nav>
+    </div>
+    {% if mode == 'list' %}
+    <!-- list -->
+    <div class="row pb-4 text-muted" style="background-color: #fffffff9;">
+        {% if dev %}
+        <div class="col-md-12 pb-2 pt-2 row text-center">
+            <div class="col-1">
+                <input class="total" type="checkbox">
+            </div>
+            <div class="col-md-8 col-11">
+                文件
+            </div>
+            <div class="col-md-3 d-none d-md-block">
+                进度
+            </div>
+        </div>
+        {% for item in items %}
+        <div class="col-md-12 pt-2 pb-2 row fileitem" data-path="{{ path | join('/') }}/{{ item.name }}" data-key="{{ item.key }}" data-run="{{ item.status }}" style="border-top: 1px solid cadetblue;">
+            <div class="col-1 text-center">
+                <input class="select" type="checkbox" style="margin-top: 30%;">
+            </div>
+            <div class="col-md-8 col-11" style="cursor: pointer;">
+                {% if item.content_type == 'd' %}
+                <div><i class="fa fa-folder-o mr-3"></i><a href="{{ prefix }}/?path=/{{ path | join('/') }}/{{ item.name }}">{{ item.name }}</a>
+                </div>
+                {% else %}
+                <div data-toggle="tooltip" data-placement="top" title="{{ item.name }}">
+                    <i class="fa fa-file-o mr-3"></i>
+                    <a {% if item.status !=1 %}class="disabled" href="" {% else %}href="{{ prefix }}/view/{{ item.key }}" {% endif %}>{{ item.name }}</a>
+                </div>
+                <div class="row small">
+                    <div class="col-3 small">
+                        <span class="d-none d-md-none d-lg-inline">author: </span>
+                        <a href="{{ prefix }}/?path=/root/{{ item.uname }}&index=1">
+                            {{ item.uname }}
+                        </a>
+                    </div>
+                    <div class="col-2 small"><span class="d-none d-md-none d-lg-inline">size: </span>{{ item.size |
+                        size_filter }}</div>
+                    <div class="col-3 small"><span class="d-none d-md-none d-lg-inline">publish: </span>{{
+                        item.publish_date }}</div>
+                    <div class="col-4 small"><span class="d-none d-md-none d-lg-inline">update: </span>{{
+                        item.updated_at }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-3 progress-zone">
+                <div class="progress">
+                    <div class="progress-bar w-{%if item.status == 1%}100{%else%}0{%endif%}" role="progressbar" aria-valuenow="{%if item.status == 1%}100{%else%}0{%endif%}" aria-valuemin="0" aria-valuemax="100">{%if item.status == 1%}100{%else%}0{%endif%}%</div>
+                </div>
+                <div class="row pt-2 small info">
+                    <div class="col-5 info-s">0</div>
+                    <div class="col-4 info-v">0</div>
+                    <div class="col-2 info-t">0</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="col-md pb-4 table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th scope="col" width="6%"><input class="total" type="checkbox"></th>
+                        <th scope="col" width="60%">名称</th>
+                        <th scope="col" width="10%">大小</th>
+                        <th scope="col" width="12%">发布日期</th>
+                        <th scope="col" width="12%">修改日期</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr class="fileitem" style="cursor: pointer;" data-path="{{ path | join('/') }}/{{ item.name }}" data-key="{{ item.key }}">
+                        <td><input class="select" type="checkbox"></td>
+                        {% if item.content_type == 'd' %}
+                        <td><i class="fa fa-folder-o mr-3"></i><a href="{{ prefix }}/?path=/{{ path | join('/') }}/{{ item.name }}">{{ item.name }}</a>
+                        </td>
+                        {% else %}
+                        <td data-toggle="tooltip" data-placement="top" title="{{ item.name }}">
+                            <i class="fa fa-file-o mr-3"></i>
+                            <a {% if item.status !=1 %}class="disabled" href="" {% else %}href="{{ prefix }}/view/{{ item.key }}" {% endif %}>{{ item.name }}</a>
+                        </td>
+                        {% endif %}
+                        <td>{{ item.size | size_filter }}</td>
+                        <td>{{ item.publish_date }}</td>
+                        <td>{{ item.updated_at }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% if mode == 'grid' %}
+    <!-- grid -->
+    <div class="row video-grid">
+        {% for item in items %}
+        <div class="col-md-3 col-sm-6 col-12 fileitem mb-2" style="cursor: pointer;" data-path="{{ item.path }}/{{ item.name }}" data-type="{{ item.content_type }}" data-key="{{ item.key }}" data-status="{{ item.status }}" data-toggle="tooltip" data-placement="top" title="{{ item.name }}" {% if item.status !='1' and item.content_type !='d' %}aria-label=true{% endif %}>
+            <div {% if item.content_type=='d' or item.status==1 %} class="video-elem" {% elif item.status==0 %} class="video-elem video-elem-0" {% else %} class="video-elem  video-elem--1" {% endif %}>
+                <div class="display d-block mb-1">
+                    <div class="scale"></div>
+                    {% if item.content_type == 'd' %}
+                    <div class="img" style="background-image: url('/static/app/folder.png')"></div>
+                    <input type="checkbox">
+                    {% else %}
+                    <div class="img" {% if item.poster_local %} style="background: url('/{{ item.poster_local }}');background-size: cover;" {% else %} style="background: url('/static/app/404.png');background-size: cover;" {% endif %}></div>
+                    {% if item.duration %}
+                    <small class="layer">{{ item.duration | duration_filter }}</small>
+                    {% endif %}
+                    <input class="select" type="checkbox">
+                    {% endif %}
+                </div>
+                {% if item.content_type == 'd' %}
+                <a {% if item.status !=1 %}class="title text-sub-title mt-2 ml-3 mr-3 disabled" href="" {% else %}class="title text-sub-title mt-2 ml-3 mr-3" href="{{ prefix }}?path=/{{ path | join('/') }}/{{ item.name }}" {% endif %}>
+                    {{ item.name }}
+                </a>
+                {% else %}
+                <a {% if item.status !=1 %}class="title text-sub-title mt-2 ml-3 mr-3 disabled" href="" {% else %}class="title text-sub-title mt-2 ml-3 mr-3" href="{{ prefix }}/view/{{ item.key }}" {% endif %}>
+                    {{ item.name }}
+                </a>
+                {% endif %}
+                <div class="overflow-hidden">
+                    <a class="text-sub-title mt-2 ml-3 mr-3" href="{{ prefix }}/?path=/root/{{ item.uname }}&index=1"><small>{{item.uname}}</small></a>
+                    {% if item.publish_date %}
+                    <small class="d-md-none d-lg-block text-sub-title float-right mr-3">{{item.publish_date}}</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% if mode == 'video' or mode == 'm3u8' %}
+    <div class="row">
+        <div class="col-md" id="player" {% if item.src_local %}data-url={{ item.src_local }}{% endif %} {% if item.poster_local %}data-poster={{ item.poster_local }}{% endif %} {% if item.thumbnails %}data-thumbnails={{ item.thumbnails }}{% endif %}>
+
+        </div>
+    </div>
+    {% endif %}
+    {% if mode == 'list' or mode == 'grid' %}
+    <!-- 分页 -->
+    <div id="page" class="row">
+        <nav class="col-6" aria-label="Page navigation example">
+            <ul class="pagination">
+                {% if page.index == 1 %}
+                <li class="page-item disabled">
+                    <a class="page-link" href="{{ prefix }}/?path=/{{ path | join('/') }}{% if mode=='list' or mode=='grid' %}&mode={{ mode }}{% endif %}{% if status != null %}&status={{ status }}{% endif %}&index=1" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ prefix }}/?path=/{{ path | join('/') }}{% if mode=='list' or mode=='grid' %}&mode={{ mode }}{% endif %}{% if status != null %}&status={{ status }}{% endif %}&index={{page.index - 1}}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if page.pages <= 5 %} {% for index in range(1, page.pages + 1)%} <li {% if index==page.index %}class="page-item disabled" {% else %}class="page-item" {% endif %}}>
+                    <a class="page-link" href="{{ prefix }}/?path=/{{ path | join('/') }}{% if mode=='list' or mode=='grid' %}&mode={{ mode }}{% endif %}{% if status != null %}&status={{ status }}{% endif %}&index={{index}}">
+                        {{ index }}
+                    </a>
+                    </li>
+                    {% endfor %}
+                    {% else %}
+                    {% if page.index <= 3 %} {% for index in range(1, 6)%} <li {% if index==page.index %}class="page-item disabled" {% else %}class="page-item" {% endif %}}>
+                        <a class="page-link" href="{{ prefix }}/?path=/{{ path | join('/') }}{% if mode=='list' or mode=='grid' %}&mode={{ mode }}{% endif %}{% if status != null %}&status={{ status }}{% endif %}&index={{index}}">
+                            {{ index }}
+                        </a>
+                        </li>
+                        {% endfor %}
+                        {% elif page.index >= page.pages - 3 %}
+                        {% for index in range(page.pages - 5, page.pages + 1)%}
+                        <li {% if index==page.index %}class="page-item disabled" {% else %}class="page-item" {% endif %}}><a class="page-link" href="{{ prefix }}/?path=/{{ path | join('/') }}{% if mode=='list' or mode=='grid' %}&mode={{ mode }}{% endif %}{% if status != null %}&status={{ status }}{% endif %}&index={{index}}">{{
+                                index }}</a>
+                        </li>
+                        {% endfor %}
+                        {% else %}
+                        {% for index in range(page.index - 2, page.index + 3)%}
+                        <li {% if index==page.index %}class="page-item disabled" {% else %}class="page-item" {% endif %}}><a class="page-link" href="{{ prefix }}/?path=/{{ path | join('/') }}{% if mode=='list' or mode=='grid' %}&mode={{ mode }}{% endif %}{% if status != null %}&status={{ status }}{% endif %}&index={{index}}">{{
+                                index }}</a>
+                        </li>
+                        {% endfor %}
+                        {% endif %}
+                        {% endif %}
+                        {% if page.index == page.pages or page.pages == 0 %}
+                        <li class="page-item disabled">
+                            <a class="page-link" href="{{ prefix }}/?path=/{{ path | join('/') }}{% if mode=='list' or mode=='grid' %}&mode={{ mode }}{% endif %}{% if status != null %}&status={{ status }}{% endif %}&index={{page.pages}}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ prefix }}/?path=/{{ path | join('/') }}{% if mode=='list' or mode=='grid' %}&mode={{ mode }}{% endif %}{% if status != null %}&status={{ status }}{% endif %}&index={{page.index + 1}}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item goto">
+                            <input class="page-link" style="width:50px">
+                        </li>
+                        <li class="page-item disabled">
+                            <input class="page-link text-center" style="width:70px" value="{{ page.pages }}">
+                        </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% if mode == 'list' or mode == 'grid' %}
+<div id="popupRC" style="display:none;background-color: antiquewhite;" class="panel panel-primary">
+    <!-- <div class="panel-heading ">Right Click Window</div> -->
+    <div class="panel-body">
+        <button class="dropdown-item showfile">预览</button>
+    </div>
+    <!-- <div class="panel-footer"><input type="button" class="btn" value="close" onClick="$('#popupRC').css({ display: 'none' });"/></div> -->
+</div>
+
+<div style="position: fixed; right: 5vw; bottom: 15vh;font-size: 3em;cursor: pointer;background-color: #b1e9e0aa;">
+    <div id="top" class="border-bottom border-dark"><span><i class="fa fa-angle-up mr-3 ml-3" aria-hidden="true"></i></span></div>
+    <div id="bottom" class="border-top border-dark"><span><i class="fa fa-angle-down mr-3 ml-3" aria-hidden="true"></i></span></div>
+</div>
+{% endif %}
+{% endblock %}
+{% block beforebody %}
+{% if mode == 'video' or mode == 'm3u8' %}
+<script src="/static/DPlayer-1.26.0/DPlayer.min.js"></script>
+{% endif %}
+{% if mode == 'm3u8' %}
+<script src="/static/hls/hls.min.js"></script>
+{% endif %}
+<script>
+    prefix = '{{ prefix }}'
+    cur_path = '/{{ path | join("/") }}'
+    document.querySelectorAll('main a').forEach(el => {
+        el.addEventListener('click', function (event) {
+            event.preventDefault();
+            if (el.classList.contains('disabled')) return
+            assign(el.href)
+        }, false)
+    })
+    // {% if mode == 'list' or mode == 'grid' %}
+    let multi = document.querySelector('.multi')
+    let single = document.querySelector('.single')
+    set_cookie('mode', '{{ mode }}')
+    window.onscroll = function (event) {
+        set_cookie('scroll', document.querySelector('html').scrollTop)
+    }
+    window.onresize = function (event) {
+        if (document.querySelector('html').clientHeight >= document.querySelector('html').scrollHeight) {
+            document.querySelector('#top').parentNode.classList.add("d-none")
+        } else {
+            document.querySelector('#top').parentNode.classList.remove('d-none')
+        }
+    }
+    if (document.querySelector('html').clientHeight >= document.querySelector('html').scrollHeight) {
+        document.querySelector('#top').parentNode.classList.add("d-none")
+    }
+    document.querySelector('#top').addEventListener('click', function (event) {
+        document.querySelector('html').scrollTo(0, 0)
+    }, false)
+    document.querySelector('#bottom').addEventListener('click', function () {
+        document.querySelector('html').scrollTo(0, document.querySelector('html').scrollHeight)
+    }, false)
+    // {% if status %}
+    set_cookie('status', '{{ status }}')
+    // {% else %}
+    del_cookie('status')
+    // {% endif %}
+    // {% if uname %}
+    set_cookie('uname', '{{ uname }}')
+    // {% else %}
+    del_cookie('uname')
+    // {% endif %}
+    // {% if name %}
+    set_cookie('name', '{{ name }}')
+    // {% else %}
+    del_cookie('name')
+    // {% endif %}
+    // {% if page %}
+    set_cookie('index', '{{ page.index }}')
+    set_cookie('pagesize', '{{ page.size }}')
+    // {% endif %}
+    document.querySelectorAll('.fileitem').forEach(el => {
+        el.addEventListener('click', function (event) {
+            let _target = event.target
+            if (_target.tagName != "INPUT") {
+                document.querySelectorAll('input.select').forEach(els => {
+                    els.checked = false
+                })
+                el.querySelector('input').checked = true
+            }
+            check_opt()
+        }, false)
+    })
+    querySelector('input.total').addEventListener('click', function (event) {
+        document.querySelectorAll('input.select').forEach(elt => {
+            elt.checked = event.target.checked
+        })
+        check_opt()
+    })
+    function check_opt() {
+        let total_select = document.querySelectorAll('.fileitem input').length
+        let total_selected = document.querySelectorAll('.fileitem input:checked').length
+        if (total_selected < total_select) {
+            querySelector('input.total').checked = false
+        }
+        if (total_selected > 0) {
+            multi.style.display = 'inline-flex'
+            if (total_selected > 1) {
+                single.style.display = 'none'
+            } else {
+                single.style.display = 'inline-flex'
+            }
+        } else {
+            multi.style.display = 'none'
+            single.style.display = 'none'
+        }
+    }
+    function selected_keys() {
+        let keys = []
+        document.querySelectorAll('.fileitem').forEach(els => {
+            if (els.querySelector('input:checked')) keys.push(els.dataset['key'])
+        })
+        return keys
+    }
+
+    let add = document.querySelector('#additem')
+    let view = document.querySelector('#view')
+    let import_ = document.querySelector('#import')
+    if (add) {
+        add.addEventListener('click', function (event) {
+            let _obj = {}
+            document.querySelectorAll('#edit input').forEach(el => {
+                _obj[el.name] = el.value ? el.value : null
+            })
+            _obj['path'] = add.dataset['path']
+            let add_obj = []
+            if (view.value) {
+                add_obj = JSON.parse(view.value)
+            }
+            add_obj.push(_obj)
+            view.value = JSON.stringify(add_obj, null, "\t")
+        }, false)
+    }
+    if (import_) {
+        import_.addEventListener('click', function (event) {
+            let add_obj = []
+            if (view.value) {
+                add_obj = JSON.parse(view.value)
+            }
+            // let datas = JSON.stringify(add_obj)
+            axios.post('/update', add_obj)
+                .then(function (response) {
+                    if (response.status === 200) {
+                        let data = response.data
+                        if (data['code'] === 0) {
+                            console.log('SUCCESS: ' + data['msg'])
+                            assign('/')
+                        } else {
+                            console.log('FAILED: ' + data['msg'])
+                            alert(data['msg'])
+                        }
+                    }
+                }).catch(function (error) {
+                    console.log(error);
+                });
+        }, false)
+    }
+    document.querySelector('.export').addEventListener('click', function (event) {
+        let keys = selected_keys()
+        axios.post('/export', {
+            keys: keys
+        }).then(function (response) {
+            if (response.status === 200) {
+                let data = response.data
+                if (data['code'] === 0) {
+                    console.log('SUCCESS: ' + data['msg'])
+                } else {
+                    console.log('FAILED: ' + data['msg'])
+                }
+                document.querySelector('#export textarea').innerHTML = JSON.stringify(JSON.parse(data['msg']), null, "\t")
+                $('#export').modal('show')
+            }
+        }).catch(function (error) {
+            console.log(error);
+        });
+    }, false)
+    document.querySelectorAll('.delete').forEach(el => {
+        el.addEventListener('click', function (event) {
+            let keys = selected_keys()
+            if (confirm('确定删除[' + keys + ']?')) {
+                axios.post('/delete', {
+                    keys: keys
+                }).then(function (response) {
+                    if (response.status === 200) {
+                        let data = response.data
+                        if (data['code'] === 0) {
+                            console.log('SUCCESS: ' + data['msg'])
+                            assign('/')
+                        } else {
+                            console.log('FAILED: ' + data['msg'])
+                            alert(data['msg'])
+                        }
+                    }
+                }).catch(function (error) {
+                    console.log(error);
+                });
+            }
+            console.log(keys)
+        }, false)
+    })
+    document.querySelectorAll('.loadvideopage').forEach(el => {
+        el.addEventListener('click', function (event) {
+            let keys = selected_keys()
+            if (keys.length <= 0) return
+            axios.post('/loadvideopage', {
+                keys: keys
+            }).then(function (response) {
+                if (response.status === 200) {
+                    let data = response.data
+                    if (data['code'] === 0) {
+                        console.log('SUCCESS: ' + data['msg'])
+                        alert("downloadpage begin")
+                    } else {
+                        console.log('FAILED: ' + data['msg'])
+                        alert(data['msg'])
+                    }
+                }
+            }).catch(function (error) {
+                console.log(error);
+            });
+        }, false)
+    })
+    document.querySelectorAll('.downloadsrc').forEach(el => {
+        el.addEventListener('click', function (event) {
+            let keys = selected_keys()
+            if (keys.length <= 0) return
+            axios.post('/downloadsrc', {
+                keys: keys
+            }).then(function (response) {
+                if (response.status === 200) {
+                    let data = response.data
+                    if (data['code'] === 0) {
+                        console.log('SUCCESS: ' + data['msg'])
+                        assign("/")
+                    } else {
+                        console.log('FAILED: ' + data['msg'])
+                        alert(data['msg'])
+                    }
+                }
+            }).catch(function (error) {
+                console.log(error);
+            });
+        }, false)
+    })
+    document.querySelectorAll('.stop').forEach(el => {
+        el.addEventListener('click', function (event) {
+            let keys = selected_keys()
+            if (keys.length <= 0) return
+            axios.post('/stop', {
+                keys: keys
+            }).then(function (response) {
+                if (response.status === 200) {
+                    let data = response.data
+                    if (data['code'] === 0) {
+                        console.log('SUCCESS: ' + data['msg'])
+                        assign("/")
+                    } else {
+                        console.log('FAILED: ' + data['msg'])
+                        alert(data['msg'])
+                    }
+                }
+            }).catch(function (error) {
+                console.log(error);
+            });
+        }, false)
+    })
+    // proxytest
+    document.querySelectorAll('.proxytest').forEach(el => {
+        el.addEventListener('click', function (event) {
+            // proxytest()
+            axios.get('/loadproxy')
+                .then(function (response) {
+                    if (response.status === 200) {
+                        let data = response.data
+                        if (data['code'] === 0) {
+                            console.log('SUCCESS: ' + data['msg'])
+                            proxyreload(data['msg'])
+                        } else {
+                            console.log('FAILED: ' + data['msg'])
+                            alert('FAILED: ' + data['msg'])
+                        }
+                    }
+                })
+                .catch(function (error) {
+                    console.log(error);
+                });
+
+        }, false)
+    })
+
+    function proxyreload(text) {
+        let layerIndex = -1
+        if (layerIndex < 0) {
+            layerIndex = layer.open({
+                type: 1,
+                skin: 'layui-layer-rim', //加上边框
+                shadeClose: true,
+                shade: 0.8,
+                area: ['80%', '90%'],
+                title: '代理配置',
+                content: '<textarea id="proxyConfig" style="width: 100%;height: 98%;resize: none;">' + text + '</textarea>',
+                btn: ['保存', '取消'],
+                yes: function (index, layero) {
+                    //按钮【按钮一】的回调
+                    if (document.querySelector("#proxyConfig")) {
+                        axios.post('/loadproxy', {
+                            config: document.querySelector("#proxyConfig").value
+                        }).then(function (response) {
+                            if (response.status === 200) {
+                                let data = response.data
+                                if (data['code'] === 0) {
+                                    console.log('SUCCESS: ' + data['msg'])
+                                    console.log("proxyreload ok")
+                                    layer.close(layerIndex); //如果设定了yes回调，需进行手工关闭
+                                } else {
+                                    console.log('FAILED: ' + data['msg'])
+                                }
+                                alert(data['msg'])
+                            }
+                        }).catch(function (error) {
+                            console.log(error);
+                        });
+                    }
+                },
+                btn2: function (index, layero) {
+                    //按钮【按钮二】的回调
+                    console.log("proxyreload close")
+                    layer.close(layerIndex); //如果设定了yes回调，需进行手工关闭
+                },
+                end: function (index, layero) {
+                    console.log("proxyreload end")
+                    layer.close(layerIndex); //如果设定了yes回调，需进行手工关闭
+                }
+            });
+        }
+    }
+
+    function alert(msg) {
+        layer.alert(msg, {
+            time: 5 * 1000
+            , success: function (layero, index) {
+                var timeNum = this.time / 1000, setText = function (start) {
+                    layer.title((start ? timeNum : --timeNum) + ' 秒后关闭', index);
+                };
+                setText(!0);
+                this.timer = setInterval(setText, 1000);
+                if (timeNum <= 0) clearInterval(this.timer);
+            }
+            , end: function () {
+                clearInterval(this.timer);
+            }
+        })
+    }
+
+    function proxytest() {
+        let url = 'ws://' + location.host + '/proxytest'
+        let ws = new WebSocket(url);
+        cmd = '1'
+        let layerIndex = -1
+        ws.onopen = function (event) {
+            console.log(url + " Connection open ...");
+            console.log("send " + cmd);
+            ws.send(cmd);
+        }
+        ws.onmessage = function (event) {
+            if (layerIndex < 0) {
+                layerIndex = layer.open({
+                    type: 1,
+                    skin: 'layui-layer-rim', //加上边框
+                    shadeClose: true,
+                    shade: 0.8,
+                    area: ['380px', '90%'],
+                    title: '代理测试',
+                    content: '<div id="proxytest"></div>',
+                    end: function (index, layero) {
+                        console.log("close")
+                        if (ws) {
+                            ws.send('close');
+                            ws.close()
+                        }
+                        layer.close(layerIndex); //如果设定了yes回调，需进行手工关闭
+                    }
+                });
+            }
+            // console.log("Received Message: " + evt.data);
+            if (document.querySelector("#proxytest")) {
+                document.querySelector("#proxytest").innerHTML = event.data
+                ws.send("2")
+                // console.log('send 2')
+            }
+        };
+        ws.onclose = function (event) {
+            // layer.close(layerIndex)
+            console.log("Connection closed.");
+            ws = null
+        };
+        return ws;
+    }
+
+    function createWs(cmd) {
+        let url = 'ws://' + location.host + '/ws'
+        let ws = new WebSocket(url);
+        let layerIndex = -1
+        ws.onopen = function (event) {
+            console.log(url + " Connection open ...");
+            console.log("send " + cmd);
+            ws.send(cmd);
+        }
+        ws.onclose = function (event) {
+            // layer.close(layerIndex)
+            console.log("Connection closed.");
+            ws = null
+        };
+        return ws;
+    }
+
+    // log
+    document.querySelectorAll('.log').forEach(el => {
+        el.addEventListener('click', function (event) {
+
+            let cmd = '1'
+            let url = 'ws://' + location.host + '/tail'
+            let ws = new WebSocket(url);
+            let layerIndex = -1
+            ws.onopen = function (event) {
+                console.log(url + " Connection open ...");
+                console.log("send " + cmd);
+                ws.send(cmd);
+            }
+            ws.onclose = function (event) {
+                // layer.close(layerIndex)
+                console.log("Connection closed.");
+                ws = null
+            };
+
+            ws.onmessage = function (event) {
+                if (layerIndex < 0) {
+                    layerIndex = layer.open({
+                        type: 1,
+                        skin: 'layui-layer-rim', //加上边框
+                        shadeClose: true,
+                        shade: 0.8,
+                        area: ['80%', '90%'],
+                        title: '日志',
+                        content: '<textarea id="taillog" readonly="readonly" style="width: 100%;height: 98%;resize: none;"></textarea>',
+                        end: function (index, layero) {
+                            console.log("close")
+                            if (ws) {
+                                ws.send('close');
+                                ws.close()
+                            }
+                            layer.close(layerIndex); //如果设定了yes回调，需进行手工关闭
+                        }
+                    });
+                }
+                // console.log("Received Message: " + event.data)
+                if (document.querySelector("#taillog")) {
+                    if (event.data != '0') {
+                        document.querySelector("#taillog").value += '\n' + event.data
+                        document.querySelector("#taillog").scrollTop = document.querySelector("#taillog").scrollHeight
+                    }
+                    ws.send('2')
+                }
+            };
+
+            return ws;
+
+        }, false)
+    })
+
+    document.querySelectorAll('.update_poster').forEach(el => {
+        el.addEventListener('click', function (event) {
+            let keys = selected_keys()
+            // console.log(keys)
+            if (keys.length <= 0) return
+            axios.post('/update_poster', {
+                keys: keys
+            }).then(function (response) {
+                if (response.status === 200) {
+                    let data = response.data
+                    if (data['code'] === 0) {
+                        console.log('SUCCESS: ' + data['msg'])
+                        assign("{{ prefix }}/")
+                    } else {
+                        console.log('FAILED: ' + data['msg'])
+                        alert(data['msg'])
+                    }
+                }
+            }).catch(function (error) {
+                console.log(error);
+            });
+        }, false)
+    })
+
+
+    document.querySelectorAll('.thumbnails').forEach(el => {
+        el.addEventListener('click', function (event) {
+            let keys = selected_keys()
+            // console.log(keys)
+            if (keys.length <= 0) return
+            axios.post('/thumbnails', {
+                keys: keys
+            }).then(function (response) {
+                if (response.status === 200) {
+                    let data = response.data
+                    if (data['code'] === 0) {
+                        alert('SUCCESS: ' + data['msg'])
+                    } else {
+                        console.log('FAILED: ' + data['msg'])
+                        alert(data['msg'])
+                    }
+                }
+            }).catch(function (error) {
+                console.log(error);
+            });
+        }, false)
+    })
+
+    document.querySelectorAll('.update').forEach(el => {
+        el.addEventListener('click', function (event) {
+            let keys = selected_keys()
+            if (keys.length > 0) {
+                key = keys[0]
+                axios.get('/item/' + key)
+                    .then(function (response) {
+                        if (response.status === 200) {
+                            let data = response.data
+                            if (data['code'] === 0) {
+                                console.log('SUCCESS: ' + data['msg'])
+                                querySelector('#update input[name=path]').value = data['msg']['path'] + '/' + data['msg']['name']
+                                querySelector('#update input[name=key]').value = data['msg']['key']
+                                querySelector('#update select[name=status]').value = data['msg']['status']
+                                querySelector('#update input[name=src]').value = data['msg']['src']
+                                querySelector('#update input[name=src_local]').value = data['msg']['src_local']
+                                querySelector('#update input[name=poster]').value = data['msg']['poster']
+                                querySelector('#update input[name=poster_local]').value = data['msg']['poster_local']
+                                $('#update').modal('show')
+                            } else {
+                                console.log('FAILED: ' + data['msg'])
+                                alert(data['msg'])
+                            }
+                        }
+                    }).catch(function (error) {
+                        console.log(error);
+                    });
+            } else {
+                alert('请选择一项')
+            }
+        }, false)
+    })
+
+    function createtbConten(content) {
+        let div = document.createElement('div')
+        if (typeof content === 'string') {
+            div.innerText = content
+        } else {
+            div.appendChild(content)
+        }
+        div.classList.add("overflow-hidden")
+        div.style = "height: 1.5rem;"
+        let td = document.createElement('td')
+        td.appendChild(div)
+        return td
+    }
+
+    document.querySelectorAll('.config').forEach(el => {
+        el.addEventListener('click', function (event) {
+            axios.get('/configs')
+                .then(function (response) {
+                    if (response.status === 200) {
+                        let data = response.data
+                        if (data['code'] === 0) {
+                            let configs = JSON.parse(data['msg'])
+                            let dom_tmp = document.createElement('div')
+                            for (let config of configs) {
+                                // console.log(config)
+                                let row = document.createElement('tr')
+                                let key = createtbConten(config['key'])
+                                key.dataset['name'] = 'key'
+                                row.appendChild(key)
+                                let value = createtbConten(config['value'])
+                                value.dataset['name'] = 'value'
+                                row.appendChild(value)
+                                let input = document.createElement('input')
+                                input.setAttribute('type', 'checkbox')
+                                if (config['enable']) {
+                                    input.setAttribute('checked', config['enable'])
+                                }
+                                let enable = createtbConten(input)
+                                enable.dataset['name'] = 'enable'
+                                enable.style = "text-align: center;"
+                                row.appendChild(enable)
+                                // let desc = createtbConten(config['desc'])
+                                // desc.dataset['name'] = 'desc'
+                                // row.appendChild(desc)
+                                // <i class="fa fa-trash-o"></i>
+                                let trash = document.createElement('i')
+                                trash.classList.add('fa')
+                                trash.classList.add('fa-trash-o')
+                                trash.style = 'cursor: pointer;'
+                                trash.dataset['key'] = config['key']
+                                let del = createtbConten(trash)
+                                del.dataset['name'] = 'del'
+                                del.style = "text-align: center;"
+                                row.appendChild(del)
+                                dom_tmp.appendChild(row)
+                            }
+                            querySelector('#config table tbody').innerHTML = dom_tmp.innerHTML
+                            document.querySelectorAll('#config table tbody td').forEach((el, index) => {
+                                if (el.dataset['name'] === 'del') {
+                                    let div = el.querySelector('div')
+                                    let trash = div.querySelector('i')
+                                    trash.addEventListener('click', function (event) {
+                                        let key = trash.dataset['key']
+                                        if (confirm('删除[' + key + ']?')) {
+                                            let keys = [key]
+                                            axios.post('/configs/del', {
+                                                keys: keys
+                                            }).then(function (response) {
+                                                if (response.status === 200) {
+                                                    let data = response.data
+                                                    if (data['code'] === 0) {
+                                                        console.log('SUCCESS: ' + data['msg'] + ' ' + keys)
+                                                        el.parentNode.parentNode.removeChild(el.parentNode)
+                                                    } else {
+                                                        console.log('FAILED: ' + data['msg'] + ' ' + keys)
+                                                    }
+                                                    alert(data['msg'] + ' ' + keys)
+                                                }
+                                            }).catch(function (error) {
+                                                console.log(error);
+                                            });
+
+                                        }
+                                    }, false)
+                                }
+                                if (el.dataset['name'] !== 'enable' && el.dataset['name'] !== 'del') {
+                                    let div = el.querySelector('div')
+                                    div.addEventListener('dblclick', function (event) {
+                                        div.contentEditable = "True"
+                                        div.style = ''
+                                        div.focus()
+                                    }, false)
+                                    div.onblur = function (event) {
+                                        div.contentEditable = "False"
+                                        div.style = "height: 1.5rem;"
+                                    }
+                                }
+
+                            })
+                            $('#config').modal('show')
+                        } else {
+                            console.log('FAILED: ' + data['msg'])
+                            alert(data['msg'])
+                        }
+                    }
+                }).catch(function (error) {
+                    console.log(error);
+                });
+        }, false)
+    })
+    document.querySelectorAll('#config .col .add').forEach(el => {
+        el.addEventListener('click', function (event) {
+            let row = document.createElement('tr')
+            let titles = ['key', 'value', 'enable', 'del']
+            for (let title of titles) {
+                let td = document.createElement('td')
+                if (title === 'enable') {
+                    let input = document.createElement('input')
+                    input.setAttribute('type', 'checkbox')
+                    td = createtbConten(input)
+                    td.style = "text-align: center;"
+                } else if (title === 'del') {
+                    let trash = document.createElement('i')
+                    trash.classList.add('fa')
+                    trash.classList.add('fa-trash-o')
+                    trash.style = 'cursor: pointer;'
+                    trash.dataset['key'] = config['key']
+                    td = createtbConten(trash)
+                    td.style = "text-align: center;"
+                    trash.addEventListener('click', function (event) {
+                        td.parentNode.parentNode.removeChild(td.parentNode)
+                    }, false)
+                } else {
+                    td = createtbConten('')
+                    let div = td.querySelector('div')
+                    div.addEventListener('dblclick', function (event) {
+                        div.contentEditable = "True"
+                        div.style = ""
+                        div.focus()
+                    }, false)
+                    div.onblur = function (event) {
+                        div.contentEditable = "False"
+                        div.style = "height: 1.5rem;"
+                    }
+                }
+                row.appendChild(td)
+
+            }
+            querySelector('#config table tbody').appendChild(row)
+        }, false)
+    })
+    document.querySelector("#config .col .submit").addEventListener('click', function (event) {
+        let data = []
+        document.querySelectorAll('#config tbody tr').forEach(el_tr => {
+            let data_tr = {}
+            data_tr['key'] = el_tr.querySelectorAll('td')[0].innerText
+            data_tr['value'] = el_tr.querySelectorAll('td')[1].innerText
+            data_tr['enable'] = el_tr.querySelectorAll('td')[2].querySelector('input').checked
+            // data_tr['desc'] = el_tr.querySelectorAll('td')[3].innerText
+            if (Object.keys(data_tr).length > 0) data.push(data_tr)
+        })
+        axios.post('/configs', data)
+            .then(function (response) {
+                if (response.status === 200) {
+                    let data = response.data
+                    if (data['code'] === 0) {
+                        console.log('SUCCESS: ' + data['msg'])
+                    } else {
+                        console.log('FAILED: ' + data['msg'])
+                    }
+                    alert(data['msg'])
+                }
+            }).catch(function (error) {
+                console.log(error);
+            });
+    }, false)
+
+    document.querySelectorAll('.status').forEach(el => {
+        el.addEventListener('click', function (event) {
+            let keys = selected_keys()
+            if (keys.length > 0) {
+                key = keys[0]
+                createWS('ws://' + location.host + '/ws', 'status ' + keys[0])
+            } else {
+                alert('请选择一项')
+            }
+        }, false)
+    })
+    function createWS(url, cmd) {
+        let ws = new WebSocket(url);
+        let layerIndex = -1
+        ws.onopen = function (event) {
+            console.log(url + " Connection open ...");
+            console.log("send " + cmd);
+            ws.send(cmd);
+        }
+        ws.onmessage = function (event) {
+            if (layerIndex < 0) {
+                layerIndex = layer.open({
+                    title: '进度',
+                    content: '<div id="process"></div>',
+                    end: function (index, layero) {
+                        console.log("close")
+                        ws.close()
+                        layer.close(layerIndex); //如果设定了yes回调，需进行手工关闭
+                    }
+                });
+            }
+            // console.log("Received Message: " + evt.data);
+            if (document.querySelector("#process")) {
+                document.querySelector("#process").innerHTML = event.data
+            }
+        };
+        ws.onclose = function (event) {
+            layer.close(layerIndex)
+            console.log("Connection closed.");
+        };
+        return ws
+    }
+    document.querySelector('#update_to').addEventListener('click', function (event) {
+        let key = querySelector('#update input[name=key]').value
+        let status = querySelector('#update select[name=status]').value
+        let src = querySelector('#update input[name=src]').value
+        let src_local = querySelector('#update input[name=src_local]').value
+        let poster = querySelector('#update input[name=poster]').value
+        let poster_local = querySelector('#update input[name=poster_local]').value
+        axios.post('/update', [{
+            key: key,
+            status: status,
+            src: src ? src : null,
+            src_local: src_local ? src_local : null,
+            poster: poster ? poster : null,
+            poster_local: poster_local ? poster_local : null,
+        }]).then(function (response) {
+            if (response.status === 200) {
+                let data = response.data
+                if (data['code'] === 0) {
+                    console.log('SUCCESS: ' + data['msg'])
+                    assign('/')
+                } else {
+                    console.log('FAILED: ' + data['msg'])
+                    alert(data['msg'])
+                }
+            }
+        }).catch(function (error) {
+            console.log(error);
+        });
+    }, false)
+    document.querySelector('#page .goto').addEventListener("keypress", function (event) {
+        if (event.keyCode == 13) {
+            let val = event.target.value
+            if (/^\d+$/.test(val) && Number('{{ page.pages }}') >= Number(val) && Number(val) > 0) {
+                assign("{{ prefix }}/?path=/{{ path | join('/') }}{% if mode=='list' or mode=='grid' %}&mode={{ mode }}{% endif %}{% if status != null %}&status={{ status }}{% endif %}&index=" + val)
+            }
+        }
+    }, false)
+
+    function loadaccuntlist(uname_range) {
+        let uname, range = "1:2"
+        if (uname_range == undefined || uname_range.length <= 0) {
+            alert("请输入'uid/range'")
+            return
+        }
+        if (uname_range.indexOf("/") > 0) {
+            [uname, range] = uname_range.split("/")
+        } else {
+            uname = uname_range
+        }
+        axios.get('/loadaccuntlist', {
+            params: {
+                uname: uname,
+                range: range
+            }
+        }).then(function (response) {
+            if (response.status === 200) {
+                let data = response.data
+                if (data['code'] === 0) {
+                    console.log('SUCCESS: ' + data['msg'])
+                    alert('SUCCESS: ' + data['msg'])
+                } else {
+                    console.log('FAILED: ' + data['msg'])
+                    alert('FAILED: ' + data['msg'])
+                }
+            }
+        }).catch(function (error) {
+            console.log(error);
+        });
+    }
+    document.querySelector('#loadaccuntlist button').addEventListener('click', function (event) {
+        let uname_range = querySelector('#loadaccuntlist input[name=range]').value
+        loadaccuntlist(uname_range)
+    }, false)
+
+    document.querySelector('#loadaccuntlist input').addEventListener("keypress", function (event) {
+        if (event.keyCode == 13) {
+            let uname_range = event.target.value
+            loadaccuntlist(uname_range)
+        }
+    }, false)
+
+    function loadrflist(range) {
+        axios.get('/loadrflist', {
+            params: {
+                range: range
+            }
+        }).then(function (response) {
+            if (response.status === 200) {
+                let data = response.data
+                if (data['code'] === 0) {
+                    console.log('SUCCESS: ' + data['msg'])
+                    alert('SUCCESS: ' + data['msg'])
+                } else {
+                    console.log('FAILED: ' + data['msg'])
+                    alert('FAILED: ' + data['msg'])
+                }
+            }
+        }).catch(function (error) {
+            console.log(error);
+        });
+    }
+
+    document.querySelector('#loadrflist button').addEventListener('click', function (event) {
+        let range = querySelector('#loadrflist input[name=range]').value
+        loadrflist(range)
+    }, false)
+
+    document.querySelector('#loadrflist input').addEventListener("keypress", function (event) {
+        if (event.keyCode == 13) {
+            let range = event.target.value
+            loadrflist(range)
+
+        }
+    }, false)
+    document.querySelector('#search').addEventListener('click', function (event) {
+        event.preventDefault()
+        let val = document.querySelector('#search').parentNode.querySelector('input').value
+        val = val.replaceAll('&', '%26')
+        let url = "{{ prefix }}/?path=/{{ path | join('/')}}&index=1&name=" + val
+        assign(url)
+    }, false)
+    document.querySelector('#search').parentNode.querySelector('input').addEventListener('keypress', function (event) {
+        let val = event.target.value
+        if (event.keyCode == 13 && val.length > 0) {
+            val = val.replaceAll('&', '%26')
+            let url = "{{ prefix }}/?path=/{{ path | join('/')}}&index=1&name=" + val
+            assign(url)
+        }
+    }, false)
+    // {% endif %}
+
+    // {% if mode == 'list' %}
+    document.querySelectorAll(".fileitem[data-run='0']").forEach(el => {
+        process(el.querySelector(".progress-zone"), el.dataset['key'], 'ws://' + location.host + '/ws')
+    })
+    function process(el, key, url) {
+        let ws = new WebSocket(url);
+        cmd = '1status ' + key
+        let info_sv, info_tv, info_vv, scale_v
+        ws.onopen = function (event) {
+            console.log(url + " Connection open ...");
+            console.log("send " + cmd);
+            ws.send(cmd);
+        }
+        ws.onmessage = function (evt) {
+            // console.log(evt.data)
+            let data = JSON.parse(evt.data)
+            let progress_bar = el.querySelector('.progress-bar')
+            let info_s = el.querySelector('.info-s')
+            let info_t = el.querySelector('.info-t')
+            let info_v = el.querySelector('.info-v')
+
+            if (scale_v != data['scale']) {
+                scale_v = data['scale']
+                progress_bar.style['width'] = scale_v.toFixed(2) + '%'
+                progress_bar.innerText = scale_v.toFixed(2) + '%'
+            }
+
+            if (info_sv != data['info_s']) {
+                info_sv = data['info_s']
+                info_s.innerText = info_sv
+            }
+            if (info_tv != data['info_t']) {
+                info_tv = data['info_t']
+                info_t.innerText = info_tv
+            }
+            if (info_vv != data['info_v']) {
+                info_vv = data['info_v']
+                info_v.innerText = info_vv
+            }
+            if (data['scale'] >= 100) {
+                ws.close()
+            }
+            // console.log("Received Message: " + evt.data);
+        };
+        ws.onclose = function (evt) {
+            console.log("Connection closed.");
+        };
+        return ws;
+    }
+
+    // {% endif %}
+
+    // {% if mode == 'video' or mode == 'm3u8' %}
+    let player = document.querySelector('#player')
+    let video = {
+        url: '/' + player.dataset['url'],
+        pic: '/' + player.dataset['poster'],
+    }
+    if (player.dataset['thumbnails']) {
+        video['thumbnails'] = '/' + player.dataset['thumbnails']
+    }
+    // {% if mode == 'm3u8' %}
+    video['type'] = 'hls'
+    // {% endif %}
+    window.dp1 = new DPlayer({
+        container: player,
+        lang: 'zh-cn',
+        theme: '#FADFA3',
+        preload: 'auto',
+        screenshot: true,
+        video: video,
+    });
+    // {% if mode == 'video' %}
+    /*
+    if (player && player.dataset['url']) {
+        video(player.dataset['url'], '#player')
+    }
+    function video(url, el) {
+        let src = '/' + url
+        let video = document.createElement('video')
+        video.controls = "controls"
+        video.style = 'object-fit: contain;max-height: 65vh;width: 100%;background-color: rgba(17, 27, 27, 0.8);'
+        video.src = src
+        document.querySelector(el).append(video)
+    }
+    */
+    // {% endif %}
+    // {% if mode == 'm3u8' %}
+    /*
+    if (player && player.dataset['url']) {
+        video(player.dataset['url'], player.dataset['poster'], '#player')
+    }
+    function video(url, poster, el) {
+        let src = '/' + url
+        let video = document.createElement('video')
+        video.id = 'video_play'
+        video.controls = "controls"
+        video.classList.add('video-js')
+        video.preload = 'auto'
+        video.muted = true
+        video.poster = '/' + poster
+        video.style = 'object-fit: contain;height: 65vh;width: 100%;background-color: rgba(17, 27, 27, 0.8);'
+        // video.src = src
+
+        let source = document.createElement('source')
+        source.src = src
+        if (src.endsWith('.mp4')) {
+            source.type = 'video/mp4'
+            video.append(source)
+            document.querySelector(el).append(video)
+        }
+        if (src.endsWith('.m3u8')) {
+            source.type = 'application/x-mpegURL'
+            video.append(source)
+            document.querySelector(el).append(video)
+            var player = videojs('video_play', {
+                bigPlayButton: false,
+                textTrackDisplay: false,
+                posterImage: false,
+                errorDisplay: false,
+                controlBar: {
+                    captionsButton: false,
+                    chaptersButton: false,
+                    subtitlesButton: false,
+                    liveDisplay: false,
+                    playbackRateMenuButton: false
+                }
+            }, function () {
+                // console.log(this)
+            });
+            player.play();
+        }
+    }
+    */
+    // {% endif %}
+    // {% endif %}
+</script>
+<script src="/static/app/main.js"></script>
+{% endblock %}

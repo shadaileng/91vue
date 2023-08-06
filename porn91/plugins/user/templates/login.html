@@ -1,0 +1,89 @@
+{% extends '__base_local__.html' %}
+
+{% block title %}登录{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="card col-md-8">
+            <div class="card-header">
+                登录
+            </div>
+            <div class="card-body">
+                <form class="needs-validation" novalidate action="login">
+                    <div class="form-group row">
+                        <label for="inputName" class="col-sm-2 offset-sm-1 col-form-label">帐号</label>
+                        <div class="col-sm-8">
+                            <input type="name" name="name" class="form-control" id="inputName" required>
+                            <div class="invalid-feedback">
+                                帐号不能为空
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label for="inputPassword" class="col-sm-2 offset-sm-1 col-form-label">密码</label>
+                        <div class="col-sm-8">
+                            <input type="password" name="password" class="form-control" id="inputPassword" required>
+                            <div class="invalid-feedback">
+                                密码不能为空
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <div class="col-sm-4 offset-sm-1">
+                            <button type="submit" class="btn btn-primary">登录</button>
+                            <button type="reset" class="btn btn-primary">重置</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block beforebody %}
+<!-- <script src="static/app.js"></script> -->
+<script src="https://cdn.bootcss.com/js-sha1/0.6.0/sha1.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/layer/3.5.1/layer.js"></script>
+<script>
+    let form = document.querySelector('form.needs-validation')
+    form && form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (form.checkValidity() === false) {
+            form.classList.add('was-validated');
+            return
+        }
+        form.querySelectorAll('[name]').forEach(e => { e.classList.remove('is-invalid') })
+        url = form.action
+        axios.post(url, {
+            name: form.name.value,
+            password: sha1(form.password.value).toString(),
+        })
+            .then(function (response) {
+                // console.log(response);
+                if (response.status === 200) {
+                    let data = response.data
+                    if (data['code'] === 0) {
+                        console.log('SUCCESS: ' + data['msg'])
+                        location.assign('/')
+                    } else {
+                        console.log('FAILED: ' + data['msg'])
+                        let field = form[data['field']]
+                        if (field) {
+                            let feedback = field.parentNode.querySelector('.invalid-feedback')
+                            feedback.innerText = data['msg']
+                            field.classList.add('is-invalid')
+                        } else {
+                            layer.msg('系统异常')
+                        }
+                    }
+                }
+            })
+            .catch(function (error) {
+                console.log(error);
+            });
+    }, false);
+</script>
+{% endblock %}

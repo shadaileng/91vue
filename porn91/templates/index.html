@@ -1,0 +1,723 @@
+{% extends '__base_local__.html' %}
+
+{% block title %}首页{% endblock %}
+
+{% block beforehead %}
+<style>
+    html,
+    body {
+        scroll-behavior: smooth;
+    }
+
+    .v-enter-active,
+    .v-leave-active {
+        transition: opacity .2s ease;
+        transition: translate .2s ease;
+    }
+
+    .fade-enter-from,
+    .fade-leave-to {
+        transition: translateY(0)
+    }
+
+    .slide-fade-enter-active {
+        transition: all .3s ease-out;
+    }
+
+    .slide-fade-leave-active {
+        transition: all .8s cubic-bezier(1.0, 0.5, 0.8, 1.0);
+    }
+
+    .slide-fade-enter-from,
+    .slide-fade-leave-to {
+        transform: translateY(0px);
+        opacity: 0;
+    }
+
+    .tools-main {
+        background-color: #c1f0c1aa;
+        bottom: 150px;
+        right: 2vw;
+        cursor: pointer;
+        position: fixed;
+        text-align: center;
+        z-index: 101;
+    }
+</style>
+{% endblock %}
+{% block content %}
+<section class="content-header">
+    <h1>
+        91Porn
+        <small>91 </small>
+    </h1>
+    <ol class="breadcrumb">
+        <li><a href="/"><i class="fa fa-dashboard"></i> Home</a></li>
+        <li class="active">91 porn</li>
+    </ol>
+</section>
+
+<div class="container" id="main">
+    <router-view></router-view>
+</div>
+{% endblock %}
+{% block beforebody %}
+<script src="static/vue/vue.global-3.2.31.js"></script>
+<script src="static/vue/vue-router.global-4.0.14.js"></script>
+<script src="static/vue/vue3-sfc-loader-5.3.5.js"></script>
+<script src="static/DPlayer-1.26.0/DPlayer.min.js"></script>
+<script src="static/main.js"></script>
+<script>
+    let view = {
+        // data返回值是暴露的属性
+        data() {
+            return {
+                player: null
+            }
+        },
+        props: ['url', 'path', 'poster', 'thumbnails'],
+        methods: {
+        },
+        delimiters: ['+{', '}'],
+        template: `
+            <div class="row">
+                <nav class="col-md-8" aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li v-for="item, index in path" class="breadcrumb-item" :aria-current="index == path.length - 1 ? 'page' : ''">
+                            <a v-if="index === 0" @click="$router.push({name: 'index'})" href="#/">+{item}</a>
+                            <a v-else-if="index === 1" @click="$router.push({name: 'index', path: '/index', params: {uname: item, page_index: 1}})" href="#/">+{item}</a>
+                            <span v-else>+{item}</span>
+                        </li>
+                    </ol>
+                </nav>
+            </div>
+            <div class="row">
+                <div ref="player" class="col-md" style="max-height: 60vh;"></div>
+            </div>`,
+        mounted() {
+            if (!this.url) {
+                this.$router.push({ name: 'index' })
+                return
+            }
+            let video = {
+                url: `${location.pathname}${this.url}`,
+                pic: `${location.pathname}${this.poster}`,
+                thumbnails: `${location.pathname}${this.thumbnails}`,
+            }
+            console.log(video)
+            if (this.url.indexOf('m3u8') > 0) {
+                video['type'] = 'hls'
+            }
+            this.player = new DPlayer({
+                container: this.$refs.player,
+                lang: 'zh-cn',
+                theme: '#FADFA3',
+                preload: 'auto',
+                screenshot: true,
+                video: video,
+            })
+        },
+        watch: {
+        }
+    }
+
+    let index = {
+        // data返回值是暴露的属性
+        data() {
+            return {
+                items: [],
+                selectItems: [],
+                // path: ['/root'],
+                path: { all: 'root', uname: '', status: '' },
+                prefix: 'vue',
+                mode: 'list',
+                page: { "total": 0, "pages": 1, "index": 1, "size": 15 },
+                filter: { uname: null, status: null },
+                loading: false,
+                vue_export: {
+                    show: false,
+                    content: '',
+                    callbacks_: [() => { this.vue_export.show = false; this.vue_export.content = '' }]
+                },
+                vue_import: {
+                    show: false,
+                    content: ''
+                },
+                vue_config: {
+                    show: false,
+                    content: [{
+                        key: 'sub',
+                        value: 'https://jiang.netlify.app/',
+                        enable: true,
+                    }]
+                },
+                vue_update: {
+                    show: false,
+                    content: {
+                        path: 'path',
+                        name: 'name',
+                        key: 'key',
+                        status: 0,
+                        src: 'src',
+                        src_local: 'src_local',
+                        poster: 'poster',
+                        poster_local: 'poster_local',
+                    }
+                },
+                vue_command: {
+                    show: false,
+                    content: {
+                        command: 'loadrflist',
+                        params: {
+                            range: '1:2'
+                        },
+                    }
+                },
+                ws: null,
+            }
+        },
+        props: ['uname', 'page_index'],
+        methods: {
+            choseItem(items) {
+                this.selectItems = []
+                for (let id of items) {
+                    for (let item of this.items) {
+                        if (item.id === id) {
+                            this.selectItems.push(item)
+                            break
+                        }
+                    }
+                }
+            },
+            switchMode(mode) {
+                this.mode = mode
+                localStorage.setItem('mode', mode)
+            },
+            pageToStatus(status) {
+                if (status.length = 0) {
+                    this.filter['status'] = null
+                } else {
+                    this.filter['status'] = status
+                }
+                this.pageTo(this.page.index)
+                localStorage.setItem('filter', JSON.stringify(this.filter))
+                this.path['status'] = status
+                localStorage.setItem('path', JSON.stringify(this.path))
+            },
+            pageToAuthorAll() {
+                this.filter['status'] = null
+                this.pageTo(1)
+                localStorage.setItem('filter', JSON.stringify(this.filter))
+                this.path['status'] = null
+                localStorage.setItem('path', JSON.stringify(this.path))
+            },
+            pageToAuthor(uname) {
+                // log(uname)
+                this.filter['uname'] = uname
+                this.pageTo(1)
+                localStorage.setItem('filter', JSON.stringify(this.filter))
+                this.path['uname'] = uname
+                localStorage.setItem('path', JSON.stringify(this.path))
+            },
+            pageToAll() {
+                this.filter['uname'] = null
+                this.filter['status'] = null
+                this.pageTo(1)
+                localStorage.setItem('filter', JSON.stringify(this.filter))
+                this.path['uname'] = ''
+                this.path['status'] = ''
+                localStorage.setItem('path', JSON.stringify(this.path))
+            },
+            pageTo(index) {
+                if (index > this.page.pages) index = this.page.pages
+                if (index <= 0) index = 1
+                filter = ''
+                // console.log(filter)
+                let param = {
+                    pagesize: this.page.size,
+                    index: index
+                }
+                Object.keys(this.filter).forEach(key => {
+                    if (this.filter[key]) {
+                        param[key] = this.filter[key]
+                    }
+                })
+                get('vue/items', param, {
+                    _before: () => {
+                        this.loading = true
+                    },
+                    _final: () => { this.loading = false; this.selectItems = [] },
+                    _success: (data) => {
+                        this.items = data['data']['items']
+                        // this.path = data['data']['path']
+                        this.prefix = data['data']['prefix']
+                        this.page = data['data']['page']
+                        this.ws_status_req()
+                    },
+                })
+            },
+            ws_status_req() {
+                if (this.ws === null || this.ws.running === undefined) return
+                let keys = []
+                this.items.forEach(item => {
+                    if (this.ws.running.indexOf(item['key']) < 0) {
+                        keys.push(item['key'])
+                    }
+                })
+                let req = { 'command': 'key', 'params': keys }
+                // console.log(this.ws)
+                this.ws.send(JSON.stringify(req));
+            },
+            status_init() {
+                const protocols = {'https:': 'wss', 'http:': 'ws'}
+                let url = `${protocols[location.protocol]}://${location.host}${location.pathname}/status`
+                this.ws = new WebSocket(url);
+                this.ws.onopen = (event) => {
+                    this.ws.running = []
+                    console.log(url + " Connection open ...");
+                    this.ws_status_req()
+                }
+                this.ws.onmessage = (event) => {
+                    // console.log("Received Message: " + event.data);
+                    let data = event.data
+                    try {
+                        data = JSON.parse(data)
+                        if (data['command'] === 'rep') {
+                            let key = data['params']['key']
+                            let items = this.items.filter(item => { if (item['key'] === key) return item })
+                            if (items.length > 0) {
+                                status_data = data['params']
+                                let item = items[0]
+                                item['status_data'] = status_data
+                                if (status_data['scale'] >= 100) {
+                                    this.ws_status_req()
+                                    this.ws.running.splice(this.ws.running.indexOf(key), 1)
+                                } else {
+                                    let key = status_data['key']
+                                    if (this.ws.running.indexOf(key) < 0) {
+                                        this.ws.running.push(key)
+                                    }
+                                    let req = { 'command': 'path', 'params': status_data }
+                                    // log(req, "send")
+                                    this.ws.send(JSON.stringify(req));
+                                }
+                            } else {
+                                this.ws.running.splice(this.ws.running.indexOf(key), 1)
+                            }
+                        }
+                    } catch (error) {
+                        if (data === 'close') {
+                            this.ws.send('close');
+                        }
+                        if (data === 'req') {
+                            console.log('req ...')
+                            let keys = []
+                            this.items.forEach(item => {
+                                keys.push(item['key'])
+                            })
+                            let req = { 'command': 'key', 'params': keys }
+                            this.ws.send(JSON.stringify(req));
+                        }
+                    }
+                };
+                this.ws.onclose = (event) => {
+                    console.log("Connection closed.");
+                };
+                return this.ws;
+            },
+            status_running() {
+                let url = 'ws://' + location.host + '/status'
+                const ws = new WebSocket(url);
+                ws.onopen = (event) => {
+                    console.log(url + " Connection open ...");
+                    ws.send(JSON.stringify({ 'command': 'running' }));
+                }
+                ws.onmessage = (event) => {
+                    // console.log("Received Message: " + event.data);
+                    let data = event.data
+                    try {
+                        data = JSON.parse(data)
+                        if (data['command'] === 'running') {
+                            let status_data = data['params']
+                            console.log(status_data)
+                            ws.send(JSON.stringify({ 'command': 'running' }));
+                        }
+                    } catch (error) {
+                        if (data === 'close') {
+                            ws.send('close');
+                        }
+                    }
+                };
+                ws.onclose = (event) => {
+                    console.log("Connection closed.");
+                };
+                return ws;
+            },
+            resize(size) {
+                this.page.size = size
+                localStorage.setItem('page', JSON.stringify(this.page))
+            },
+            export2() {
+                log(this.selectItems)
+                if (this.selectItems.length <= 0) return
+                this.vue_export.content = JSON.stringify(this.selectItems, null, "\t")
+                this.vue_export.show = true
+            },
+            onImport91(content) {
+                if (!content || content.length <= 0) return
+                let objs = []
+                try {
+                    objs = JSON.parse(content)
+                } catch (error) {
+                    alert(error.message)
+                    return
+                }
+                if (!(objs instanceof Array)) return
+                objs.sort((a, b) => {
+                    if (Object.keys(a).indexOf('id') < 0) return 0
+                    if (Object.keys(b).indexOf('id') < 0) return 0
+                    if (typeof (a['id']) !== 'number') return 0
+                    if (typeof (b['id']) !== 'number') return 0
+                    return a['id'] - b['id']
+                })
+                let items = []
+                let fields = ['key', 'name', 'src', 'poster', 'uname', 'uid', 'path', 'content_type', 'duration', 'size', 'publish_date', 'url', 'src_local', 'poster_local', 'status']
+                objs.forEach(el => {
+                    if (el['key'] && el['key'].length > 0
+                        && el['src'] && el['src'].length > 0
+                        && el['poster'] && el['poster'].length > 0
+                        && el['name'] && el['name'].length > 0
+                    ) {
+                        el['content_type'] = 'video'
+                        let item = {}
+                        fields.forEach(field => {
+                            item[field] = el[field]
+                        })
+                        items.push(item)
+                    }
+                });
+                if (items.length <= 0) {
+                    alert("items is empty")
+                    return
+                }
+                post('import', {
+                    items: items
+                }, {
+                    _before: () => {
+                        this.loading = true
+                    },
+                    _final: () => { this.loading = false },
+                    _success: (data) => { this.pageTo(1); this.vue_import.show = false },
+                })
+            },
+            delete2() {
+                log(this.selectItems)
+                if (this.selectItems.length <= 0) return
+                let info = this.selectItems[0].name
+                if (this.selectItems.length >= 2) {
+                    info += ", " + this.selectItems[1].name + "..]等" + this.selectItems.length + '项'
+                } else {
+                    info += "]"
+                }
+                if (confirm('删除[' + info)) {
+                    post('delete', {
+                        items: this.selectItems
+                    }, {
+                        _before: () => {
+                            this.loading = true
+                        },
+                        _final: () => { this.loading = false },
+                        _success: (data) => { this.pageTo(this.page.index); this.vue_import.show = false },
+                    })
+                }
+            },
+            download() {
+                if (this.selectItems.length <= 0) return
+                let keys = []
+                this.selectItems.forEach(item => {
+                    keys.push(item['key'])
+                })
+                post('download', {
+                    keys: keys
+                }, {
+                    _before: () => {
+                        this.loading = true
+                    },
+                    _final: () => { this.loading = false },
+                    _success: (data) => {alert(data['msg']);log(data['msg']); this.vue_import.show = false },
+                })
+            },
+            onConfig() {
+                get('configs', {}, {
+                    _before: () => {
+                        this.loading = true
+                    },
+                    _final: () => { this.loading = false },
+                    _success: (data) => {
+                        this.vue_config.show = true
+                        this.vue_config.content = data['data']['items']
+                    },
+                })
+            },
+            doConfig(items, remove) {
+                if (items instanceof Array && items.length > 0) {
+                    post('configs', {
+                        items: items
+                    }, {
+                        _before: () => {
+                            this.loading = true
+                        },
+                        _final: () => { this.loading = false },
+                        _success: (data) => {
+                            this.vue_config.content = data['msg']['items']
+                            this.vue_config.show = false
+                        },
+                    })
+                }
+                if (remove instanceof Array && remove.length > 0) {
+                    post('configs/del', {
+                        ids: remove
+                    }, {
+                        _before: () => {
+                            this.loading = true
+                        },
+                        _final: () => { this.loading = false },
+                        _success: (data) => {
+                            this.vue_config.content = data['msg']['items']
+                            this.vue_config.show = false
+                        },
+                    })
+                }
+            },
+            onUpdate() {
+                if (this.selectItems.length <= 0) return
+                get('item/' + this.selectItems[0].id, {}, {
+                    _before: () => {
+                        this.loading = true
+                    },
+                    _final: () => { this.loading = false },
+                    _success: (data) => {
+                        if (data['data']['items'].length <= 0) return
+                        this.vue_update.show = true
+                        this.vue_update.content = data['data']['items'][0]
+                    },
+                })
+            },
+            doUpdate(item) {
+                post('import', {
+                    items: [item]
+                }, {
+                    _before: () => {
+                        this.loading = true
+                    },
+                    _final: () => { this.loading = false },
+                    _success: (data) => {
+                        this.pageTo(this.page.index);
+                        // this.vue_update.show = false
+                    },
+                })
+            },
+            loadrflist() {
+                this.vue_command.content = {
+                    command: 'loadrflist',
+                    params: {
+                        range: '1:2'
+                    },
+                }
+                this.vue_command.show = true
+            },
+            loadaccuntlist() {
+                this.vue_command.content = {
+                    command: 'loadaccuntlist',
+                    params: {
+                        uname: '',
+                        range: '1:2',
+                    },
+                }
+                this.vue_command.show = true
+            },
+            doCommand(item) {
+                post('' + item.command, item.params, {
+                    _before: () => {
+                        this.loading = true
+                    },
+                    _error: (data) => {
+                        alert(data['msg'])
+                    },
+                    _success: (data) => {
+                        alert(data['msg'])
+                    },
+                    _final: () => { this.loading = false },
+                })
+            },
+            command(url) {
+                if (this.selectItems.length <= 0) return
+                post(url, {
+                    items: this.selectItems
+                }, {
+                    _before: () => {
+                        this.loading = true
+                    },
+                    _error: (data) => {
+                        alert(data['msg'])
+                    },
+                    _success: (data) => {
+                        alert(data['msg'])
+                        this.pageTo(this.page.index)
+                    },
+                    _final: () => { this.loading = false },
+                })
+            },
+            logger() {
+                /*
+                let pathname = ``
+                if (location.pathname.length > 1) {
+                    pathname = `/${location.pathname}`
+                }
+                let url = `ws://${location.host}${pathname}/tail`
+                */
+                const protocols = {'https:': 'wss', 'http:': 'ws'}
+                let url = `${protocols[location.protocol]}://${location.host}${location.pathname}/tail`
+                let ws = new WebSocket(url);
+                ws.onopen = (event) => {
+                    console.log(url + " Connection open ...");
+                    ws.send('1 server/info.log');
+                    this.vue_export.show = true
+                }
+                ws.onmessage = (event) => {
+                    // console.log("Received Message: " + event.data);
+                    if (event.data && event.data.length > 0)
+                        this.vue_export.content += event.data + '\n'
+                    ws.send('2');
+                };
+                ws.onclose = (event) => {
+                    console.log("Connection closed.");
+                    this.ws = null
+                    this.vue_export.show = false
+                };
+                this.vue_export.callbacks_.push(() => { ws && ws.send('close'); })
+                return ws;
+            }
+        },
+        components: {
+            toogleMode: component('static/vue/toogleMode.vue'),
+            pagination: component('static/vue/pagination.vue'),
+            list: component('static/vue/list.vue'),
+            grid: component('static/vue/grid.vue'),
+            navtb: component('static/vue/navtb.vue'),
+            'export': component('static/vue/export.vue'),
+            import91: component('static/vue/import91.vue'),
+            config: component('static/vue/config.vue'),
+            update: component('static/vue/update.vue'),
+            loading: component('static/vue/loading.vue'),
+            command: component('static/vue/command.vue'),
+        },
+        delimiters: ['+{', '}'],
+        template: `
+            <div>
+                <toogle-mode @switch-mode="switchMode" :mode="mode" :path="path" @page-to-all="pageToAll" @page-to-author-all="pageToAuthorAll" @page-to-status="pageToStatus"></toogle-mode>
+                <component :is="mode" :items="items" @select="choseItem" @page-to="pageToAuthor"></component>
+                <pagination :page="page" @page-to="pageTo" @resize="resize"></pagination>
+                <transition>
+                    <loading v-if="loading"></loading>
+                </transition>
+                <export :show='vue_export.show' :content='vue_export.content' @hide="vue_export.callbacks_.forEach(callback=>{callback()})"></export>
+                <import91 :show='vue_import.show' @save="onImport91" @hide="vue_import.show=false"></import91>
+                <update :show='vue_update.show' :content="vue_update.content" @save="doUpdate" @refresh="onUpdate" @hide="vue_update.show=false"></update>
+                <config :show='vue_config.show' :content="vue_config.content" @save="doConfig" @refresh="onConfig" @hide="vue_config.show=false"></config>
+                <command :show='vue_command.show' :content="vue_command.content" @send="doCommand" @hide="vue_command.show=false"></command>
+
+	  	        {% if __user__ and __user__.admin == 1 %}
+                <transition name="slide-fade">
+                    <div class="tools-main">
+                        <div class="btn-group dropleft d-block">
+                            <a type="button" class="btn dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                                指令
+                            </a>
+                            <div class="dropdown-menu text-center" style="background-color: #c1f0c1aa;">
+                                <a class="dropdown-item btn" @click="loadrflist" data-toggle="tooltip" data-placement="top" title="热门视频">热门视频</a>
+                                <a class="dropdown-item btn" @click="loadaccuntlist" data-toggle="tooltip" data-placement="top" title="用户视频">用户视频</a>
+                                <a class="dropdown-item btn" @click="logger" data-toggle="tooltip" data-placement="top" title="日志">日志</a>
+                                <a class="dropdown-item btn border-top" @click="command('/loadvideopage')" v-if="selectItems.length > 0" data-toggle="tooltip" data-placement="top" title="视频信息">视频信息</a>
+                                <a class="dropdown-item btn" @click="command('/downloadsrc')" v-if="selectItems.length > 0" data-toggle="tooltip" data-placement="top" title="下载视频">下载视频</a>
+                                <a class="dropdown-item btn" @click="command('/stop')" v-if="selectItems.length > 0" data-toggle="tooltip" data-placement="top" title="停止下载">停止下载</a>
+                                <a class="dropdown-item btn" @click="command('/thumbnails')" v-if="selectItems.length > 0" data-toggle="tooltip" data-placement="top" title="更新预览">更新预览</a>
+                            </div>
+                        </div>
+                        <div class="btn-group dropleft d-block">
+                            <a type="button" class="btn dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                                操作
+                            </a>
+                            <div class="dropdown-menu text-center" style="background-color: #c1f0c1aa;">
+                                <a class="btn btn-sm d-block w-100 tools border-top" v-if="selectItems.length > 0" @click="delete2" data-toggle="tooltip" data-placement="top" title="删除">删除</a>
+                                <a class="btn btn-sm d-block w-100 tools border-top" v-if="selectItems.length > 0" @click="download" data-toggle="tooltip" data-placement="top" title="下载">下载</a>
+                                <a class="btn btn-sm d-block w-100 tools" v-if="selectItems.length > 0" @click="export2" data-toggle="tooltip" data-placement="top" title="导出">导出</a>
+                                <a class="btn btn-sm d-block w-100 tools border-top" v-if="selectItems.length === 1" @click="onUpdate" data-toggle="tooltip" data-placement="top" title="修改">修改</a>
+                                <a class="btn btn-sm d-block w-100 tools border-top" @click="vue_import.show=true" data-toggle="tooltip" data-placement="top" title="导入">导入</a>
+                                <a class="btn btn-sm d-block w-100 tools" @click="onConfig" data-toggle="tooltip" data-placement="top" title="配置">配置</a>
+                            </div>
+                        </div>
+                        <navtb></navtb>
+                    </div>
+                </transition>
+                {% endif %}
+            </div>`,
+        mounted() {
+            let page = localStorage.getItem('page')
+            if (page != null && page != 'null' && page != undefined && page != 'undefined') {
+                this.page = JSON.parse(page)
+            }
+            let filter = localStorage.getItem('filter')
+            if (filter != null && filter != 'null' && filter != undefined && filter != 'undefined') {
+                this.filter = JSON.parse(filter)
+            }
+            // console.log(filter)
+            let path = localStorage.getItem('path')
+            if (path != null && path != 'null' && path != undefined && path != 'undefined') {
+                this.path = JSON.parse(path)
+            }
+            if (this.uname) {
+                this.filter['uname'] = this.uname
+                this.path['uname'] = this.uname
+            }
+            this.pageTo(this.page_index || this.page.index)
+            let mode = localStorage.getItem('mode')
+            if (mode != null && mode != 'null' && mode != undefined && mode != 'undefined') {
+                this.mode = mode
+            }
+            this.status_init()
+            // this.status_running()
+        },
+        watch: {
+            page(newVal, oldVal) {
+                localStorage.setItem('page', JSON.stringify(this.page))
+            },
+        }
+    }
+    const routes = [
+        {
+            path: '',
+            name: 'index',
+            component: index,
+            props: true
+        },
+        {
+            path: '/view',
+            name: 'view',
+            component: view,
+            props: true
+        }
+    ]
+    const router = VueRouter.createRouter({
+        // 4. 内部提供了 history 模式的实现。为了简单起见，我们在这里使用 hash 模式。
+        history: VueRouter.createWebHashHistory(),
+        routes, // `routes: routes` 的缩写
+    })
+    const app = Vue.createApp({})
+    //确保 _use_ 路由实例使
+    //整个应用支持路由。
+    app.use(router)
+    // mount方法返回根组件实例
+    const vm = app.mount('#main')
+</script>
+{% endblock %}

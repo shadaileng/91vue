@@ -1,0 +1,11 @@
+sqlite:
+  db_file: "/data/data.db"
+  echo: False
+log:
+  path: /data/logs
+base_dir: /data
+host: 127.0.0.1
+port: 8080
+static:
+    /vue/91/api/poster: /data/poster
+    /vue/91/api/video: /data/video
